@@ -1,0 +1,21 @@
+a
+1
+a=b=c
+a?b:c
+a?b?c:d:e
+a?b:c?d:e
+a?b=c?d:e:f
+-a
+-+a
+-x^k
+!a
+a!
+!a!
+a+b
+a+b*c
+a*b+c
+a*(b+c)
+a*-b/c^k+d!!
+a^b^c
+f()
+f(a, ! b^g(c,d)!)

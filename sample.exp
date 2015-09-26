@@ -1,0 +1,64 @@
+> a
+name("a")
+
+> 1
+integer("1")
+
+> a=b=c
+assign("a", assign("b", name("c")))
+
+> a?b:c
+cond(name("a"), name("b"), name("c"))
+
+> a?b?c:d:e
+cond(name("a"), cond(name("b"), name("c"), name("d")), name("e"))
+
+> a?b:c?d:e
+cond(name("a"), name("b"), cond(name("c"), name("d"), name("e")))
+
+> a?b=c?d:e:f
+cond(name("a"), assign("b", cond(name("c"), name("d"), name("e"))), name("f"))
+
+> -a
+prefix(minus, name("a"))
+
+> -+a
+prefix(minus, prefix(plus, name("a")))
+
+> -x^k
+prefix(minus, infix(name("x"), caret, name("k")))
+
+> !a
+prefix(bang, name("a"))
+
+> a!
+postfix(name("a"), bang)
+
+> !a!
+prefix(bang, postfix(name("a"), bang))
+
+> a+b
+infix(name("a"), plus, name("b"))
+
+> a+b*c
+infix(name("a"), plus, infix(name("b"), star, name("c")))
+
+> a*b+c
+infix(infix(name("a"), star, name("b")), plus, name("c"))
+
+> a*(b+c)
+infix(name("a"), star, infix(name("b"), plus, name("c")))
+
+> a*-b/c^k+d!!
+infix(infix(infix(name("a"), star, prefix(minus, name("b"))), slash, infix(name("c"), caret, name("k"))), plus, postfix(postfix(name("d"), bang), bang))
+
+> a^b^c
+infix(name("a"), caret, infix(name("b"), caret, name("c")))
+
+> f()
+call(name("f"), [])
+
+> f(a, ! b^g(c,d)!)
+call(name("f"), [name("a"), prefix(bang, infix(name("b"), caret, postfix(call(name("g"), [name("c"), name("d")]), bang)))])
+
+> 
