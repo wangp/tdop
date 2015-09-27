@@ -54,6 +54,8 @@ op('^', caret).
 op('!', bang).
 op('?', question).
 op(':', colon).
+op('<', lt).
+op('>', gt).
 
 :- pred name(char::in, list(char)::in, token::out, list(char)::out) is semidet.
 

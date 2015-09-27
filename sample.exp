@@ -61,4 +61,22 @@ call(name("f"), [])
 > f(a, ! b^g(c,d)!)
 call(name("f"), [name("a"), prefix(bang, infix(name("b"), caret, postfix(call(name("g"), [name("c"), name("d")]), bang)))])
 
+> a<b
+infix(name("a"), lt, name("b"))
+
+> !a<b!
+infix(prefix(bang, name("a")), lt, postfix(name("b"), bang))
+
+> a<b>c
+parse failed
+
+> a<(b<c)
+infix(name("a"), lt, infix(name("b"), lt, name("c")))
+
+> a<(b<c)<d
+parse failed
+
+> x=a?b+1!<-c:d
+assign("x", cond(name("a"), infix(infix(name("b"), plus, postfix(integer("1"), bang)), lt, prefix(minus, name("c"))), name("d")))
+
 > 

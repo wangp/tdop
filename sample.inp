@@ -19,3 +19,9 @@ a*-b/c^k+d!!
 a^b^c
 f()
 f(a, ! b^g(c,d)!)
+a<b
+!a<b!
+a<b>c
+a<(b<c)
+a<(b<c)<d
+x=a?b+1!<-c:d

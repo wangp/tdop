@@ -22,7 +22,9 @@ The toy grammar implemented is:
 
     postfixop --> !
 
-    infixop --> + ; - ; * ; / ; ^
+    infixop --> + ; - ; * ; / ; ^ ; < ; >
+
+where < and > are non-associative.
 
 This is a better introduction than most:
 [Pratt Parsers: Expression Parsing Made Easy][1]

@@ -21,7 +21,9 @@
     ;       caret
     ;       bang
     ;       question
-    ;       colon.
+    ;       colon
+    ;       lt
+    ;       gt.
 
 :- type name == string.
 
@@ -48,7 +50,9 @@
     ;       minus
     ;       star
     ;       slash
-    ;       caret.
+    ;       caret
+    ;       lt
+    ;       gt.
 
 :- pred parse_expr(expr::out, ps::in, ps::out) is semidet.
 
@@ -61,11 +65,14 @@
 
 %-----------------------------------------------------------------------------%
 
+:- type expr_prec == {expr, prec}.
+
 :- type prec == int.
 
 :- func prec_min = prec.
 :- func prec_assign = prec.
 :- func prec_cond = prec.
+:- func prec_compare = prec.
 :- func prec_sum = prec.
 :- func prec_product = prec.
 :- func prec_prefix = prec.
@@ -76,6 +83,7 @@
 prec_min = 0.       % lowest (non-binding operators)
 prec_assign = 10.
 prec_cond = 20.
+prec_compare = 25.
 prec_sum = 30.
 prec_product = 40.
 prec_prefix = 50.
@@ -102,11 +110,12 @@ parse_expr(E, !PS) :-
 
 expr(Prec, E, !PS) :-
     consume(Token, !PS),
-    prefix_parser(Token, Parser),
+    prefix_parser(Token, Parser, PrefixPrec),
     Parser(Token, E0, !PS),
-    expr_loop(Prec, E0, E, !PS).
+    expr_loop(Prec, {E0, PrefixPrec}, {E, _}, !PS).
 
-:- pred expr_loop(prec::in, expr::in, expr::out, ps::in, ps::out) is semidet.
+:- pred expr_loop(prec::in, expr_prec::in, expr_prec::out, ps::in, ps::out)
+    is semidet.
 
 expr_loop(Prec, E0, E, !PS) :-
     (
@@ -115,7 +124,7 @@ expr_loop(Prec, E0, E, !PS) :-
         Prec < PrecR
     ->
         Parser(E0, Token, PrecR, E1, !PS),
-        expr_loop(Prec, E1, E, !PS)
+        expr_loop(Prec, {E1, PrecR}, E, !PS)
     ;
         E = E0
     ).
@@ -127,28 +136,34 @@ expr_loop(Prec, E0, E, !PS) :-
 :- type prefix_parser == pred(token, expr, ps, ps).
 :- inst prefix_parser == (pred(in, out, in, out) is semidet).
 
-:- pred prefix_parser(token, prefix_parser).
-:- mode prefix_parser(in, out(prefix_parser)) is semidet.
+:- pred prefix_parser(token, prefix_parser, prec).
+:- mode prefix_parser(in, out(prefix_parser), out) is semidet.
 
-prefix_parser(Token, Parser) :-
+prefix_parser(Token, Parser, Prec) :-
     (
         Token = name(_),
-        Parser = name
+        Parser = name,
+        Prec = prec_min
     ;
         Token = integer(_),
-        Parser = integer
+        Parser = integer,
+        Prec = prec_min
     ;
         Token = lparen,
-        Parser = group
+        Parser = group,
+        Prec = prec_min
     ;
         Token = plus,
-        Parser = prefixop(plus)
+        Parser = prefixop(plus),
+        Prec = prec_prefix
     ;
         Token = minus,
-        Parser = prefixop(minus)
+        Parser = prefixop(minus),
+        Prec = prec_prefix
     ;
         Token = bang,
-        Parser = prefixop(bang)
+        Parser = prefixop(bang),
+        Prec = prec_prefix
     ).
 
 :- pred name `with_type` prefix_parser.
@@ -179,7 +194,7 @@ prefixop(Op, _Token, E, !PS) :-
 
 % "led" (left denotation) - infix and suffix operators
 
-:- type infix_parser == pred(expr, token, prec, expr, ps, ps).
+:- type infix_parser == pred(expr_prec, token, prec, expr, ps, ps).
 :- inst infix_parser == (pred(in, in, in, out, in, out) is semidet).
 
 :- pred infix_parser(token, infix_parser, prec).
@@ -194,6 +209,14 @@ infix_parser(Token, Parser, Prec) :-
         Token = question,
         Parser = cond,
         Prec = prec_cond
+    ;
+        Token = lt,
+        Parser = infixnon(lt),
+        Prec = prec_compare
+    ;
+        Token = gt,
+        Parser = infixnon(gt),
+        Prec = prec_compare
     ;
         Token = plus,
         Parser = infixl(plus),
@@ -227,7 +250,7 @@ infix_parser(Token, Parser, Prec) :-
 :- pred assign `with_type` infix_parser.
 :- mode assign `with_inst` infix_parser.
 
-assign(E0, _Token, Prec, E, !PS) :-
+assign({E0, _}, _Token, Prec, E, !PS) :-
     E0 = name(Name),
     expr(lower(Prec), E1, !PS),
     E = assign(Name, E1).
@@ -235,7 +258,7 @@ assign(E0, _Token, Prec, E, !PS) :-
 :- pred cond `with_type` infix_parser.
 :- mode cond `with_inst` infix_parser.
 
-cond(E0, _Token, _Prec, E, !PS) :-
+cond({E0, _}, _Token, _Prec, E, !PS) :-
     parse_expr(E1, !PS),
     consume(colon, !PS),
     parse_expr(E2, !PS),
@@ -244,28 +267,37 @@ cond(E0, _Token, _Prec, E, !PS) :-
 :- pred infixl(infixop) `with_type` infix_parser.
 :- mode infixl(in) `with_inst` infix_parser.
 
-infixl(Op, E0, _Token, Prec, E, !PS) :-
+infixl(Op, {E0, _}, _Token, Prec, E, !PS) :-
     expr(Prec, E1, !PS),
     E = infix(E0, Op, E1).
 
 :- pred infixr(infixop) `with_type` infix_parser.
 :- mode infixr(in) `with_inst` infix_parser.
 
-infixr(Op, E0, _Token, Prec, E, !PS) :-
+infixr(Op, {E0, _}, _Token, Prec, E, !PS) :-
     expr(lower(Prec), E1, !PS),
+    E = infix(E0, Op, E1).
+
+:- pred infixnon(infixop) `with_type` infix_parser.
+:- mode infixnon(in) `with_inst` infix_parser.
+
+infixnon(Op, {E0, Prec0}, _Token, Prec, E, !PS) :-
+    % Precedence of left expr must not be the same as the operator.
+    Prec0 \= Prec,
+    expr(Prec, E1, !PS),
     E = infix(E0, Op, E1).
 
 :- pred postfix(postfixop) `with_type` infix_parser.
 :- mode postfix(in) `with_inst` infix_parser.
 
-postfix(Op, E0, _Token, _Prec, E, !PS) :-
+postfix(Op, {E0, _}, _Token, _Prec, E, !PS) :-
     E = postfix(E0, Op),
     semidet_true.
 
 :- pred call `with_type` infix_parser.
 :- mode call `with_inst` infix_parser.
 
-call(E0, _Token, _Prec, E, !PS) :-
+call({E0, _}, _Token, _Prec, E, !PS) :-
     ( consume(rparen, !PS) ->
         Args = []
     ;
